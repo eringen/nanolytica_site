@@ -69,7 +69,7 @@
       
       gl.viewport(0,0,canvas.width,canvas.height)
       
-      gl.enable(gl.BLEND)
+      //gl.enable(gl.BLEND)
       gl.blendFunc(gl.SRC_ALPHA,gl.ONE)
       
       gl.clearColor(0.03,0.03,0.03,1)
@@ -92,53 +92,53 @@
       
       
       const lineVS=`
-      attribute vec3 position;
-      uniform mat4 proj;
-      uniform mat4 view;
-      
-      void main(){
-      gl_Position=proj*view*vec4(position,1.0);
-      }
+        attribute vec3 position;
+        uniform mat4 proj;
+        uniform mat4 view;
+        
+        void main(){
+          gl_Position=proj*view*vec4(position,1.0);
+        }
       `
       
       const lineFS=`
-      precision mediump float;
-      void main(){
-      gl_FragColor=vec4(0.35,0.38,0.42,0.5);
-      }
+        precision mediump float;
+          void main(){
+          gl_FragColor=vec4(.3,.3,.3,.5);
+        }
       `
       
       const lineProgram=createProgram(lineVS,lineFS)
       
       const dotVS=`
-      attribute vec3 position;
-      attribute vec3 color;
-      uniform mat4 proj;
-      uniform mat4 view;
-      varying vec3 vColor;
-      void main(){
-      gl_Position=proj*view*vec4(position,1.0);
-      gl_PointSize=6.0;
-      vColor=color;
-      }
+        attribute vec3 position;
+        attribute vec3 color;
+        uniform mat4 proj;
+        uniform mat4 view;
+        varying vec3 vColor;
+        void main(){
+          gl_Position=proj*view*vec4(position,1.0);
+          gl_PointSize=6.0;
+          vColor=color;
+        }
       `
       const dotFS=`
-      precision mediump float;
-      varying vec3 vColor;
-      void main(){
-      float d=length(gl_PointCoord-vec2(0.5));
-      float alpha=smoothstep(0.5,0.0,d);
-      gl_FragColor=vec4(vColor,alpha);
-      }
+        precision mediump float;
+        varying vec3 vColor;
+        void main(){
+          float d=length(gl_PointCoord-vec2(0.5));
+          float alpha=smoothstep(0.5,0.0,d);
+          gl_FragColor=vec4(vColor,alpha);
+        }
       `
       const dotProgram=createProgram(dotVS,dotFS)
       
       const params={
-        lineCount:100,
-        segmentCount:150,
-        curveLength:80,
-        straightLength:100,
-        spreadHeight:30,
+        lineCount:40,
+        segmentCount:50,
+        curveLength:50,
+        straightLength:130,
+        spreadHeight:20,
         waveSpeed:3.4,
         waveHeight:0.25,
         signalCount:300
