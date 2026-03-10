@@ -58,238 +58,27 @@
 
     <section class="min-h-screen flex items-center pt-20">
       <canvas id="c" class="absolute" style="z-index:-1"></canvas>
-
       <script>
-      
-      (function(){
-        const canvas=document.getElementById("c")
-        const gl=canvas.getContext("webgl")
-        
-        canvas.width=innerWidth;
-        canvas.height=innerHeight;
-        
-        gl.viewport(0,0,canvas.width,canvas.height);
-        
-        //gl.enable(gl.BLEND)
-        gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
-        
-        gl.clearColor(0.03,0.03,0.03,1);
-        
-        
-        function compile(type,src){
-          let s=gl.createShader(type);
-          gl.shaderSource(s,src);
-          gl.compileShader(s);
-          return s
-        }
-        
-        function createProgram(vs,fs){
-          let p=gl.createProgram()
-          gl.attachShader(p,compile(gl.VERTEX_SHADER,vs))
-          gl.attachShader(p,compile(gl.FRAGMENT_SHADER,fs))
-          gl.linkProgram(p)
-          return p
-        }
-        
-        
-        const lineVS=`
-          attribute vec3 position;
-          uniform mat4 proj;
-          uniform mat4 view;
-          
-          void main(){
-            gl_Position=proj*view*vec4(position,1.0);
-          }
-        `
-        
-        const lineFS=`
-          precision mediump float;
-            void main(){
-            gl_FragColor=vec4(.3,.3,.3,.5);
-          }
-        `
-        
-        const lineProgram=createProgram(lineVS,lineFS)
-        
-        const dotVS=`
-          attribute vec3 position;
-          attribute vec3 color;
-          uniform mat4 proj;
-          uniform mat4 view;
-          varying vec3 vColor;
-          void main(){
-            gl_Position=proj*view*vec4(position,1.0);
-            gl_PointSize=4.0;
-            vColor=color;
-          }
-        `
-        const dotFS=`
-          precision mediump float;
-          varying vec3 vColor;
-          void main(){
-            float d=length(gl_PointCoord-vec2(0.5));
-            float alpha=smoothstep(0.1,0.4,d);
-            gl_FragColor=vec4(vColor,alpha);
-          }
-        `
-        const dotProgram=createProgram(dotVS,dotFS)
-        
-        const params={
-          lineCount: 40,
-          segmentCount: 50,
-          curveLength:50,
-          straightLength:130,
-          spreadHeight:20,
-          waveSpeed:3.4,
-          waveHeight:0.25,
-          signalCount:300
-        }
-        
-        function perspective(fov,aspect,near,far){
-          let f=1/Math.tan(fov/2)
-          let nf=1/(near-far)
-        
-          return new Float32Array([ f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0 ])
-        }
-        
-        function view(z){
-          return new Float32Array([ 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,-z,1 ])
-        }
-        
-        function getPathPoint(t,lineIndex,time){
-          const total=params.curveLength+params.straightLength
-          const x=-params.curveLength+t*total
-        
-          let y=0
-          let z=0
-          const spread=(lineIndex/params.lineCount-0.5)*2
-          if(x<0){
-            let ratio=(x+params.curveLength)/params.curveLength
-            let shape=(Math.cos(ratio*Math.PI)+1)/2
-            shape=Math.pow(shape,0.82)
-            y=spread*params.spreadHeight*shape
-        
-            const wave=Math.sin(time*params.waveSpeed+x*0.1+lineIndex) * params.waveHeight*shape
-        
-            y+=wave
-          }
-          return[x,y,z]
-        }
-        
-        let linePos=new Float32Array(params.lineCount*params.segmentCount*3)
-        let lineBuffer=gl.createBuffer()
-        const COLORS=[ [1,0.2,0.2], [1,0.85,0.2], [0.3,.7,0.5], [0.1,.3,0.5] ]
-        
-        function randomColor(){
-          return COLORS[Math.floor(Math.random()*COLORS.length)]
-        }
-        
-        
-        let signals=[]
-        for(let i=0;i<params.signalCount;i++){
-        
-          signals.push({
-            lane:Math.floor(Math.random()*params.lineCount),
-            progress:Math.random(),
-            speed:0.1+Math.random()*0.2,
-            color:randomColor()
-          })
-        }
-        
-        function updateLines(time){
-          let p=0
-          for(let i=0;i<params.lineCount;i++){
-            for(let j=0;j<params.segmentCount;j++){
-              let t=j/(params.segmentCount-1)
-              let pos=getPathPoint(t,i,time)
-              linePos[p]=pos[0]
-              linePos[p+1]=pos[1]
-              linePos[p+2]=pos[2]
-              p+=3
-            }
-          }
-          gl.bindBuffer(gl.ARRAY_BUFFER,lineBuffer)
-          gl.bufferData(gl.ARRAY_BUFFER,linePos,gl.DYNAMIC_DRAW)
-        }
-        
-        
-        function drawLines(proj,view){
-          gl.useProgram(lineProgram)
-          let posLoc=gl.getAttribLocation(lineProgram,"position")
-          gl.uniformMatrix4fv( gl.getUniformLocation(lineProgram,"proj"), false,proj)
-          gl.uniformMatrix4fv( gl.getUniformLocation(lineProgram,"view"), false,view)
-          gl.bindBuffer(gl.ARRAY_BUFFER,lineBuffer)
-          gl.vertexAttribPointer(posLoc,3,gl.FLOAT,false,0,0)
-          gl.enableVertexAttribArray(posLoc)
-        
-          for(let i=0;i<params.lineCount;i++){
-            gl.drawArrays( gl.LINE_STRIP, i*params.segmentCount, params.segmentCount)
-          }
-        }
-
-        function drawSignals(time,proj,view){
-          gl.useProgram(dotProgram)
-          let pos=[]
-          let col=[]
-          signals.forEach(s=>{
-            s.progress+=s.speed*0.003
-            if(s.progress>1){
-              s.progress=0
-              s.lane=Math.floor(Math.random()*params.lineCount)
-              s.color=randomColor()
-            }
-        
-            let p=getPathPoint(s.progress,s.lane,time)
-        
-            pos.push(p[0],p[1],p[2])
-            col.push(s.color[0],s.color[1],s.color[2])
-        
-          })
-        
-          let posBuffer=gl.createBuffer()
-          let colBuffer=gl.createBuffer()
-        
-          gl.bindBuffer(gl.ARRAY_BUFFER,posBuffer)
-          gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(pos),gl.DYNAMIC_DRAW)
-        
-          let posLoc=gl.getAttribLocation(dotProgram,"position")
-          gl.vertexAttribPointer(posLoc,3,gl.FLOAT,false,0,0)
-          gl.enableVertexAttribArray(posLoc)
-        
-          gl.bindBuffer(gl.ARRAY_BUFFER,colBuffer)
-          gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(col),gl.DYNAMIC_DRAW)
-        
-          let colLoc=gl.getAttribLocation(dotProgram,"color")
-          gl.vertexAttribPointer(colLoc,3,gl.FLOAT,false,0,0)
-          gl.enableVertexAttribArray(colLoc)
-          gl.uniformMatrix4fv( gl.getUniformLocation(dotProgram,"proj"), false,proj)
-          gl.uniformMatrix4fv( gl.getUniformLocation(dotProgram,"view"), false,view)
-          gl.drawArrays(gl.POINTS,0,signals.length)
-        
-        }
-
-        let start=performance.now()
-        
-        function frame(){
-          let time=(performance.now()-start)/1000
-          gl.clear(gl.COLOR_BUFFER_BIT)
-          let proj=perspective(45*Math.PI/180,canvas.width/canvas.height,1,1000)
-          let v=view(90)
-          updateLines(time)
-          drawLines(proj,v)
-          drawSignals(time,proj,v)
-          requestAnimationFrame(frame)
-        }
-        frame()
-        
-        addEventListener("resize",()=>{
-          canvas.width=innerWidth
-          canvas.height=innerHeight
-          gl.viewport(0,0,canvas.width,canvas.height)
-        
-        })
-      }())
-      
+        (function(){const r=document.getElementById("c");const f=r.getContext("webgl");r.width=innerWidth;r.height=innerHeight;
+        f.viewport(0,0,r.width,r.height);f.blendFunc(f.SRC_ALPHA,f.ONE);f.clearColor(.03,.03,.03,1);function n(t,e){let o=f.createShader(t);f.shaderSource(o,e);f.compileShader(o);return o}function t(t,e){let o=f.createProgram();
+        f.attachShader(o,n(f.VERTEX_SHADER,t));f.attachShader(o,n(f.FRAGMENT_SHADER,e));f.linkProgram(o);return o}const e=` attribute vec3 position; uniform mat4 proj; uniform mat4 view; void main(){ gl_Position=proj*view*vec4(position,1.0); }
+        `;const o=` precision mediump float; void main(){ gl_FragColor=vec4(.3,.3,.3,.5); }`;const i=t(e,o);const a=` attribute vec3 position; attribute vec3 color; uniform mat4 proj; uniform mat4 view; varying vec3 vColor; void main(){ gl_Position=proj*view*vec4(position,1.0); gl_PointSize=4.0; vColor=color; }
+        `;const l=` precision mediump float; varying vec3 vColor; void main(){ float d=length(gl_PointCoord-vec2(0.5)); float alpha=smoothstep(0.1,0.4,d); gl_FragColor=vec4(vColor,alpha); }
+        `;const s=t(a,l);const u={lineCount:40,segmentCount:50,curveLength:50,straightLength:130,spreadHeight:20,waveSpeed:3.4,waveHeight:.25,signalCount:300};
+        function c(t,e,o,r){let n=1/Math.tan(t/2);let i=1/(o-r);return new Float32Array([n/e,0,0,0,0,n,0,0,0,0,(r+o)*i,-1,0,0,2*r*o*i,0])}function h(t){return new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,-t,1])}
+        function g(t,o,r){const e=u.curveLength+u.straightLength;const n=-u.curveLength+t*e;let i=0;let a=0;const l=(o/u.lineCount-.5)*2;if(n<0){let t=(n+u.curveLength)/u.curveLength;
+        let e=(Math.cos(t*Math.PI)+1)/2;e=Math.pow(e,.82);i=l*u.spreadHeight*e;const c=Math.sin(r*u.waveSpeed+n*.1+o)*u.waveHeight*e;i+=c}return[n,i,a]}let A=new Float32Array(u.lineCount*u.segmentCount*3);
+        let m=f.createBuffer();const v=[[1,.2,.2],[1,.85,.2],[.3,.7,.5],[.1,.3,.5]];function d(){return v[Math.floor(Math.random()*v.length)]}let p=[];for(let t=0;t<u.signalCount;t++)
+        {p.push({lane:Math.floor(Math.random()*u.lineCount),progress:Math.random(),speed:.1+Math.random()*.2,color:d()})}function R(n){let i=0;for(let r=0;r<u.lineCount;r++)
+        {for(let o=0;o<u.segmentCount;o++){let t=o/(u.segmentCount-1);let e=g(t,r,n);A[i]=e[0];A[i+1]=e[1];A[i+2]=e[2];i+=3}}f.bindBuffer(f.ARRAY_BUFFER,m);f.bufferData(f.ARRAY_BUFFER,A,f.DYNAMIC_DRAW)}
+        function C(t,e){f.useProgram(i);let o=f.getAttribLocation(i,"position");f.uniformMatrix4fv(f.getUniformLocation(i,"proj"),false,t);f.uniformMatrix4fv(f.getUniformLocation(i,"view"),false,e);
+        f.bindBuffer(f.ARRAY_BUFFER,m);f.vertexAttribPointer(o,3,f.FLOAT,false,0,0);f.enableVertexAttribArray(o);for(let t=0;t<u.lineCount;t++){f.drawArrays(f.LINE_STRIP,t*u.segmentCount,u.segmentCount)}}
+        function F(o,t,e){f.useProgram(s);let r=[];let n=[];p.forEach(t=>{t.progress+=t.speed*.003;if(t.progress>1){t.progress=0;t.lane=Math.floor(Math.random()*u.lineCount);t.color=d()}let e=g(t.progress,t.lane,o);
+        r.push(e[0],e[1],e[2]);n.push(t.color[0],t.color[1],t.color[2])});let i=f.createBuffer();let a=f.createBuffer();f.bindBuffer(f.ARRAY_BUFFER,i);f.bufferData(f.ARRAY_BUFFER,new Float32Array(r),f.DYNAMIC_DRAW);
+        let l=f.getAttribLocation(s,"position");f.vertexAttribPointer(l,3,f.FLOAT,false,0,0);f.enableVertexAttribArray(l);f.bindBuffer(f.ARRAY_BUFFER,a);f.bufferData(f.ARRAY_BUFFER,new Float32Array(n),f.DYNAMIC_DRAW);
+        let c=f.getAttribLocation(s,"color");f.vertexAttribPointer(c,3,f.FLOAT,false,0,0);f.enableVertexAttribArray(c);f.uniformMatrix4fv(f.getUniformLocation(s,"proj"),false,t);f.uniformMatrix4fv(f.getUniformLocation(s,"view"),false,e);
+        f.drawArrays(f.POINTS,0,p.length)}let w=performance.now();function b(){let t=(performance.now()-w)/1e3;f.clear(f.COLOR_BUFFER_BIT);let e=c(45*Math.PI/180,r.width/r.height,1,1e3);let o=h(90);R(t);C(e,o);
+        F(t,e,o);requestAnimationFrame(b)}b();addEventListener("resize",()=>{r.width=innerWidth;r.height=innerHeight;f.viewport(0,0,r.width,r.height)})})();
       </script>
 
         <div class="max-w-screen-2xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
@@ -573,7 +362,7 @@
             </div>
             
             <div class="mt-16 text-xs uppercase tracking-widest text-zinc-500">
-                Open source • MIT License • Made with ❤️ for privacy
+                Open source • MIT License • Made for privacy
             </div>
             <a href="https://github.com/eringen/nanolytica" target="_blank"
                class="mt-6 inline-flex items-center gap-x-3 text-sm border-b border-dashed border-zinc-400 pb-1 hover:text-white">
