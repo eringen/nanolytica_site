@@ -65,21 +65,21 @@
         const canvas=document.getElementById("c")
         const gl=canvas.getContext("webgl")
         
-        canvas.width=innerWidth
-        canvas.height=innerHeight
+        canvas.width=innerWidth;
+        canvas.height=innerHeight;
         
-        gl.viewport(0,0,canvas.width,canvas.height)
+        gl.viewport(0,0,canvas.width,canvas.height);
         
         //gl.enable(gl.BLEND)
-        gl.blendFunc(gl.SRC_ALPHA,gl.ONE)
+        gl.blendFunc(gl.SRC_ALPHA,gl.ONE);
         
-        gl.clearColor(0.03,0.03,0.03,1)
+        gl.clearColor(0.03,0.03,0.03,1);
         
         
         function compile(type,src){
-          let s=gl.createShader(type)
-          gl.shaderSource(s,src)
-          gl.compileShader(s)
+          let s=gl.createShader(type);
+          gl.shaderSource(s,src);
+          gl.compileShader(s);
           return s
         }
         
@@ -119,7 +119,7 @@
           varying vec3 vColor;
           void main(){
             gl_Position=proj*view*vec4(position,1.0);
-            gl_PointSize=6.0;
+            gl_PointSize=4.0;
             vColor=color;
           }
         `
@@ -128,15 +128,15 @@
           varying vec3 vColor;
           void main(){
             float d=length(gl_PointCoord-vec2(0.5));
-            float alpha=smoothstep(0.5,0.0,d);
+            float alpha=smoothstep(0.1,0.4,d);
             gl_FragColor=vec4(vColor,alpha);
           }
         `
         const dotProgram=createProgram(dotVS,dotFS)
         
         const params={
-          lineCount:40,
-          segmentCount:50,
+          lineCount: 40,
+          segmentCount: 50,
           curveLength:50,
           straightLength:130,
           spreadHeight:20,
@@ -146,29 +146,17 @@
         }
         
         function perspective(fov,aspect,near,far){
-        
           let f=1/Math.tan(fov/2)
           let nf=1/(near-far)
         
-          return new Float32Array([
-            f/aspect,0,0,0,
-            0,f,0,0,
-            0,0,(far+near)*nf,-1,
-            0,0,(2*far*near)*nf,0
-          ])
+          return new Float32Array([ f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,(2*far*near)*nf,0 ])
         }
         
         function view(z){
-          return new Float32Array([
-            1,0,0,0,
-            0,1,0,0,
-            0,0,1,0,
-            0,0,-z,1
-          ])
+          return new Float32Array([ 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,-z,1 ])
         }
         
         function getPathPoint(t,lineIndex,time){
-        
           const total=params.curveLength+params.straightLength
           const x=-params.curveLength+t*total
         
@@ -176,30 +164,21 @@
           let z=0
           const spread=(lineIndex/params.lineCount-0.5)*2
           if(x<0){
-        
             let ratio=(x+params.curveLength)/params.curveLength
             let shape=(Math.cos(ratio*Math.PI)+1)/2
             shape=Math.pow(shape,0.82)
-        
             y=spread*params.spreadHeight*shape
         
-            const wave=Math.sin(time*params.waveSpeed+x*0.1+lineIndex)
-              *params.waveHeight*shape
+            const wave=Math.sin(time*params.waveSpeed+x*0.1+lineIndex) * params.waveHeight*shape
         
             y+=wave
-        
           }
           return[x,y,z]
-        
         }
         
         let linePos=new Float32Array(params.lineCount*params.segmentCount*3)
         let lineBuffer=gl.createBuffer()
-        const COLORS=[
-          [1,0.2,0.2],
-          [1,0.85,0.2],
-          [0.3,1,0.5]
-        ]
+        const COLORS=[ [1,0.2,0.2], [1,0.85,0.2], [0.3,.7,0.5], [0.1,.3,0.5] ]
         
         function randomColor(){
           return COLORS[Math.floor(Math.random()*COLORS.length)]
@@ -212,78 +191,48 @@
           signals.push({
             lane:Math.floor(Math.random()*params.lineCount),
             progress:Math.random(),
-            speed:0.2+Math.random()*0.5,
+            speed:0.1+Math.random()*0.2,
             color:randomColor()
           })
         }
         
         function updateLines(time){
-        
           let p=0
-        
           for(let i=0;i<params.lineCount;i++){
-        
             for(let j=0;j<params.segmentCount;j++){
-        
               let t=j/(params.segmentCount-1)
               let pos=getPathPoint(t,i,time)
-        
               linePos[p]=pos[0]
               linePos[p+1]=pos[1]
               linePos[p+2]=pos[2]
-        
               p+=3
-        
             }
-        
           }
-        
           gl.bindBuffer(gl.ARRAY_BUFFER,lineBuffer)
           gl.bufferData(gl.ARRAY_BUFFER,linePos,gl.DYNAMIC_DRAW)
-        
         }
         
         
         function drawLines(proj,view){
-        
           gl.useProgram(lineProgram)
-        
           let posLoc=gl.getAttribLocation(lineProgram,"position")
-        
-          gl.uniformMatrix4fv(
-            gl.getUniformLocation(lineProgram,"proj"),
-            false,proj)
-        
-          gl.uniformMatrix4fv(
-            gl.getUniformLocation(lineProgram,"view"),
-            false,view)
-        
+          gl.uniformMatrix4fv( gl.getUniformLocation(lineProgram,"proj"), false,proj)
+          gl.uniformMatrix4fv( gl.getUniformLocation(lineProgram,"view"), false,view)
           gl.bindBuffer(gl.ARRAY_BUFFER,lineBuffer)
-        
           gl.vertexAttribPointer(posLoc,3,gl.FLOAT,false,0,0)
           gl.enableVertexAttribArray(posLoc)
         
           for(let i=0;i<params.lineCount;i++){
-        
-            gl.drawArrays(
-              gl.LINE_STRIP,
-              i*params.segmentCount,
-              params.segmentCount)
-        
+            gl.drawArrays( gl.LINE_STRIP, i*params.segmentCount, params.segmentCount)
           }
-        
         }
+
         function drawSignals(time,proj,view){
-        
           gl.useProgram(dotProgram)
-        
           let pos=[]
           let col=[]
-        
           signals.forEach(s=>{
-        
             s.progress+=s.speed*0.003
-        
             if(s.progress>1){
               s.progress=0
               s.lane=Math.floor(Math.random()*params.lineCount)
@@ -313,45 +262,29 @@
           let colLoc=gl.getAttribLocation(dotProgram,"color")
           gl.vertexAttribPointer(colLoc,3,gl.FLOAT,false,0,0)
           gl.enableVertexAttribArray(colLoc)
-        
-          gl.uniformMatrix4fv(
-            gl.getUniformLocation(dotProgram,"proj"),
-            false,proj)
-        
-          gl.uniformMatrix4fv(
-            gl.getUniformLocation(dotProgram,"view"),
-            false,view)
-        
+          gl.uniformMatrix4fv( gl.getUniformLocation(dotProgram,"proj"), false,proj)
+          gl.uniformMatrix4fv( gl.getUniformLocation(dotProgram,"view"), false,view)
           gl.drawArrays(gl.POINTS,0,signals.length)
         
         }
+
         let start=performance.now()
         
         function frame(){
-        
           let time=(performance.now()-start)/1000
-        
           gl.clear(gl.COLOR_BUFFER_BIT)
-        
           let proj=perspective(45*Math.PI/180,canvas.width/canvas.height,1,1000)
           let v=view(90)
-        
           updateLines(time)
-        
           drawLines(proj,v)
-        
           drawSignals(time,proj,v)
-        
           requestAnimationFrame(frame)
-        
         }
         frame()
         
         addEventListener("resize",()=>{
-        
           canvas.width=innerWidth
           canvas.height=innerHeight
-        
           gl.viewport(0,0,canvas.width,canvas.height)
         
         })
