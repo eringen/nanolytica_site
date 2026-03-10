@@ -56,8 +56,307 @@
         </div>
     </nav>
 
-    <!-- HERO -->
-    <section class="hero-bg min-h-screen flex items-center pt-20">
+    <section class="min-h-screen flex items-center pt-20">
+      <canvas id="c" class="absolute" style="z-index:-1"></canvas>
+
+      <script>
+      
+      const canvas=document.getElementById("c")
+      const gl=canvas.getContext("webgl")
+      
+      canvas.width=innerWidth
+      canvas.height=innerHeight
+      
+      gl.viewport(0,0,canvas.width,canvas.height)
+      
+      gl.enable(gl.BLEND)
+      gl.blendFunc(gl.SRC_ALPHA,gl.ONE)
+      
+      gl.clearColor(0.03,0.03,0.03,1)
+      
+      
+      function compile(type,src){
+        let s=gl.createShader(type)
+        gl.shaderSource(s,src)
+        gl.compileShader(s)
+        return s
+      }
+      
+      function createProgram(vs,fs){
+        let p=gl.createProgram()
+        gl.attachShader(p,compile(gl.VERTEX_SHADER,vs))
+        gl.attachShader(p,compile(gl.FRAGMENT_SHADER,fs))
+        gl.linkProgram(p)
+        return p
+      }
+      
+      
+      const lineVS=`
+      attribute vec3 position;
+      uniform mat4 proj;
+      uniform mat4 view;
+      
+      void main(){
+      gl_Position=proj*view*vec4(position,1.0);
+      }
+      `
+      
+      const lineFS=`
+      precision mediump float;
+      void main(){
+      gl_FragColor=vec4(0.35,0.38,0.42,0.5);
+      }
+      `
+      
+      const lineProgram=createProgram(lineVS,lineFS)
+      
+      const dotVS=`
+      attribute vec3 position;
+      attribute vec3 color;
+      uniform mat4 proj;
+      uniform mat4 view;
+      varying vec3 vColor;
+      void main(){
+      gl_Position=proj*view*vec4(position,1.0);
+      gl_PointSize=6.0;
+      vColor=color;
+      }
+      `
+      const dotFS=`
+      precision mediump float;
+      varying vec3 vColor;
+      void main(){
+      float d=length(gl_PointCoord-vec2(0.5));
+      float alpha=smoothstep(0.5,0.0,d);
+      gl_FragColor=vec4(vColor,alpha);
+      }
+      `
+      const dotProgram=createProgram(dotVS,dotFS)
+      
+      const params={
+        lineCount:100,
+        segmentCount:150,
+        curveLength:80,
+        straightLength:100,
+        spreadHeight:30,
+        waveSpeed:3.4,
+        waveHeight:0.25,
+        signalCount:300
+      }
+      
+      function perspective(fov,aspect,near,far){
+      
+        let f=1/Math.tan(fov/2)
+        let nf=1/(near-far)
+      
+        return new Float32Array([
+          f/aspect,0,0,0,
+          0,f,0,0,
+          0,0,(far+near)*nf,-1,
+          0,0,(2*far*near)*nf,0
+        ])
+      }
+      
+      function view(z){
+        return new Float32Array([
+          1,0,0,0,
+          0,1,0,0,
+          0,0,1,0,
+          0,0,-z,1
+        ])
+      }
+      
+      function getPathPoint(t,lineIndex,time){
+      
+        const total=params.curveLength+params.straightLength
+        const x=-params.curveLength+t*total
+      
+        let y=0
+        let z=0
+        const spread=(lineIndex/params.lineCount-0.5)*2
+        if(x<0){
+      
+          let ratio=(x+params.curveLength)/params.curveLength
+          let shape=(Math.cos(ratio*Math.PI)+1)/2
+          shape=Math.pow(shape,0.82)
+      
+          y=spread*params.spreadHeight*shape
+      
+          const wave=Math.sin(time*params.waveSpeed+x*0.1+lineIndex)
+            *params.waveHeight*shape
+      
+          y+=wave
+      
+        }
+        return[x,y,z]
+      
+      }
+      
+      let linePos=new Float32Array(params.lineCount*params.segmentCount*3)
+      let lineBuffer=gl.createBuffer()
+      const COLORS=[
+        [1,0.2,0.2],
+        [1,0.85,0.2],
+        [0.3,1,0.5]
+      ]
+      
+      function randomColor(){
+        return COLORS[Math.floor(Math.random()*COLORS.length)]
+      }
+      
+      
+      let signals=[]
+      for(let i=0;i<params.signalCount;i++){
+      
+        signals.push({
+          lane:Math.floor(Math.random()*params.lineCount),
+          progress:Math.random(),
+          speed:0.2+Math.random()*0.5,
+          color:randomColor()
+        })
+      }
+      
+      function updateLines(time){
+      
+        let p=0
+      
+        for(let i=0;i<params.lineCount;i++){
+      
+          for(let j=0;j<params.segmentCount;j++){
+      
+            let t=j/(params.segmentCount-1)
+            let pos=getPathPoint(t,i,time)
+      
+            linePos[p]=pos[0]
+            linePos[p+1]=pos[1]
+            linePos[p+2]=pos[2]
+      
+            p+=3
+      
+          }
+      
+        }
+      
+        gl.bindBuffer(gl.ARRAY_BUFFER,lineBuffer)
+        gl.bufferData(gl.ARRAY_BUFFER,linePos,gl.DYNAMIC_DRAW)
+      
+      }
+      
+      
+      function drawLines(proj,view){
+      
+        gl.useProgram(lineProgram)
+      
+        let posLoc=gl.getAttribLocation(lineProgram,"position")
+      
+        gl.uniformMatrix4fv(
+          gl.getUniformLocation(lineProgram,"proj"),
+          false,proj)
+      
+        gl.uniformMatrix4fv(
+          gl.getUniformLocation(lineProgram,"view"),
+          false,view)
+      
+        gl.bindBuffer(gl.ARRAY_BUFFER,lineBuffer)
+      
+        gl.vertexAttribPointer(posLoc,3,gl.FLOAT,false,0,0)
+        gl.enableVertexAttribArray(posLoc)
+      
+        for(let i=0;i<params.lineCount;i++){
+      
+          gl.drawArrays(
+            gl.LINE_STRIP,
+            i*params.segmentCount,
+            params.segmentCount)
+      
+        }
+      
+      }
+      function drawSignals(time,proj,view){
+      
+        gl.useProgram(dotProgram)
+      
+        let pos=[]
+        let col=[]
+      
+        signals.forEach(s=>{
+      
+          s.progress+=s.speed*0.003
+      
+          if(s.progress>1){
+            s.progress=0
+            s.lane=Math.floor(Math.random()*params.lineCount)
+            s.color=randomColor()
+          }
+      
+          let p=getPathPoint(s.progress,s.lane,time)
+      
+          pos.push(p[0],p[1],p[2])
+          col.push(s.color[0],s.color[1],s.color[2])
+      
+        })
+      
+        let posBuffer=gl.createBuffer()
+        let colBuffer=gl.createBuffer()
+      
+        gl.bindBuffer(gl.ARRAY_BUFFER,posBuffer)
+        gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(pos),gl.DYNAMIC_DRAW)
+      
+        let posLoc=gl.getAttribLocation(dotProgram,"position")
+        gl.vertexAttribPointer(posLoc,3,gl.FLOAT,false,0,0)
+        gl.enableVertexAttribArray(posLoc)
+      
+        gl.bindBuffer(gl.ARRAY_BUFFER,colBuffer)
+        gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(col),gl.DYNAMIC_DRAW)
+      
+        let colLoc=gl.getAttribLocation(dotProgram,"color")
+        gl.vertexAttribPointer(colLoc,3,gl.FLOAT,false,0,0)
+        gl.enableVertexAttribArray(colLoc)
+      
+        gl.uniformMatrix4fv(
+          gl.getUniformLocation(dotProgram,"proj"),
+          false,proj)
+      
+        gl.uniformMatrix4fv(
+          gl.getUniformLocation(dotProgram,"view"),
+          false,view)
+      
+        gl.drawArrays(gl.POINTS,0,signals.length)
+      
+      }
+      let start=performance.now()
+      
+      function frame(){
+      
+        let time=(performance.now()-start)/1000
+      
+        gl.clear(gl.COLOR_BUFFER_BIT)
+      
+        let proj=perspective(45*Math.PI/180,canvas.width/canvas.height,1,1000)
+        let v=view(90)
+      
+        updateLines(time)
+      
+        drawLines(proj,v)
+      
+        drawSignals(time,proj,v)
+      
+        requestAnimationFrame(frame)
+      
+      }
+      frame()
+      
+      addEventListener("resize",()=>{
+      
+        canvas.width=innerWidth
+        canvas.height=innerHeight
+      
+        gl.viewport(0,0,canvas.width,canvas.height)
+      
+      })
+      
+      </script>
+
         <div class="max-w-screen-2xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
             <div class="pt-12 md:pt-0">
                 <div class="inline-flex items-center gap-x-2 bg-zinc-900 border border-zinc-700 rounded-3xl px-4 py-1.5 text-xs font-medium tracking-widest">
@@ -70,11 +369,8 @@
                     <span class="text-yellow-400">That respects you.</span>
                 </h1>
                 
-                <p class="mt-8 text-2xl text-zinc-400 max-w-lg">
-                    Lightweight, privacy-first analytics in one ~10MB binary.<br>
-                    No cookies. No consent banners. GDPR compliant by design.
-                </p>
-
+                <p class="mt-8 text-2xl text-zinc-400 max-w-lg">Lightweight, privacy-first analytics in one ~10MB binary. </p>
+                 <p class="mt-8 text-2xl text-zinc-400 max-w-lg">No consent banners. GDPR compliant by design.</p>   
                 <div class="mt-10 flex flex-wrap gap-4">
                     <a href="#get-started" 
                        class="px-8 py-4 bg-yellow-400 hover:bg-yellow-300 transition-colors text-zinc-950 font-semibold text-lg rounded-3xl flex items-center gap-x-3">
@@ -354,13 +650,13 @@
     <!-- FOOTER -->
     <footer class="border-t border-zinc-900 py-12">
         <div class="max-w-screen-2xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-y-6 text-xs text-zinc-500">
-            <div>© 2026 eringen • nanolytica</div>
+            <div>© 2026 <a href="https://eringen.com" target="_blank" class="hover:text-zinc-300">eringen.com</a> • nanolytica</div>
             <div class="flex gap-x-8">
                 <a href="https://github.com/eringen/nanolytica" target="_blank" class="hover:text-zinc-300">GitHub</a>
-                <a href="#" class="hover:text-zinc-300">Issues</a>
-                <a href="#" class="hover:text-zinc-300">Docs</a>
+                <a href="https://github.com/eringen/nanolytica/issues" class="hover:text-zinc-300">Issues</a>
+                <a href="https://github.com/eringen/nanolytica/wiki/Nanolytica" class="hover:text-zinc-300">Docs</a>
             </div>
-            <div>Made for humans who value privacy</div>
+            <div>Made for privacy</div>
         </div>
     </footer>
 
