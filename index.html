@@ -50,26 +50,26 @@
     <section class="min-h-screen flex items-center pt-20">
       <canvas id="c" class="absolute" style="z-index:-1"></canvas>
       <script>
-        (function(){const r=document.getElementById("c");const f=r.getContext("webgl");r.width=innerWidth;r.height=innerHeight;
-        f.viewport(0,0,r.width,r.height);f.blendFunc(f.SRC_ALPHA,f.ONE);f.clearColor(.03,.03,.03,1);function n(t,e){let o=f.createShader(t);f.shaderSource(o,e);f.compileShader(o);return o}function t(t,e){let o=f.createProgram();
-        f.attachShader(o,n(f.VERTEX_SHADER,t));f.attachShader(o,n(f.FRAGMENT_SHADER,e));f.linkProgram(o);return o}const e=` attribute vec3 position; uniform mat4 proj; uniform mat4 view; void main(){ gl_Position=proj*view*vec4(position,1.0); }
-        `;const o=` precision mediump float; void main(){ gl_FragColor=vec4(.3,.3,.3,.5); }`;const i=t(e,o);const a=` attribute vec3 position; attribute vec3 color; uniform mat4 proj; uniform mat4 view; varying vec3 vColor; void main(){ gl_Position=proj*view*vec4(position,1.0); gl_PointSize=4.0; vColor=color; }
-        `;const l=` precision mediump float; varying vec3 vColor; void main(){ float d=length(gl_PointCoord-vec2(0.5)); float alpha=smoothstep(0.1,0.4,d); gl_FragColor=vec4(vColor,alpha); }
-        `;const s=t(a,l);const u={lineCount:40,segmentCount:50,curveLength:50,straightLength:130,spreadHeight:20,waveSpeed:3.4,waveHeight:.25,signalCount:300};
-        function c(t,e,o,r){let n=1/Math.tan(t/2);let i=1/(o-r);return new Float32Array([n/e,0,0,0,0,n,0,0,0,0,(r+o)*i,-1,0,0,2*r*o*i,0])}function h(t){return new Float32Array([1,0,0,0,0,1,0,0,0,0,1,0,0,0,-t,1])}
-        function g(t,o,r){const e=u.curveLength+u.straightLength;const n=-u.curveLength+t*e;let i=0;let a=0;const l=(o/u.lineCount-.5)*2;if(n<0){let t=(n+u.curveLength)/u.curveLength;
+        (function(){const r=document.getElementById("c");const f=r.getContext("webgl");r.width=innerWidth;r.height=innerHeight; f.viewport(0,0,r.width,r.height);f.blendFunc(f.SRC_ALPHA,f.ONE);
+        f.clearColor(.03,.03,.03,1);function n(t,e){let o=f.createShader(t);f.shaderSource(o,e);f.compileShader(o);return o}function t(t,e){let o=f.createProgram();f.attachShader(o,n(f.VERTEX_SHADER,t));
+        f.attachShader(o,n(f.FRAGMENT_SHADER,e));f.linkProgram(o);return o}const e=` attribute vec3 position; uniform mat4 proj; uniform mat4 view; void main(){ gl_Position=proj*view*vec4(position,1.0);}
+        `;const o=`precision mediump float;void main(){gl_FragColor=vec4(.3,.3,.3,.5);}`;const i=t(e,o);const a=`attribute vec3 position;attribute vec3 color;uniform mat4 proj;uniform mat4 view;
+        varying vec3 vColor;void main(){gl_Position=proj*view*vec4(position,1.0);gl_PointSize=4.0;vColor=color;}`;const l=`precision mediump float;varying vec3 vColor;void main(){float d=length(gl_PointCoord-vec2(0.5));
+        float alpha=smoothstep(0.1,0.4,d);gl_FragColor=vec4(vColor,alpha);}`;const s=t(a,l);const u={lineCount:40,segmentCount:50,curveLength:50,straightLength:130,spreadHeight:20,waveSpeed:3.4,waveHeight:.25,
+        signalCount:300};function c(t,e,o,r){let n=1/Math.tan(t/2);let i=1/(o-r);return new Float32Array([n/e,0,0,0,0,n,0,0,0,0,(r+o)*i,-1,0,0,2*r*o*i,0])}function h(t){return new Float32Array([1,0,0,0,0,1,0,
+        0,0,0,1,0,0,0,-t,1])}function g(t,o,r){const e=u.curveLength+u.straightLength;const n=-u.curveLength+t*e;let i=0;let a=0;const l=(o/u.lineCount-.5)*2;if(n<0){let t=(n+u.curveLength)/u.curveLength;
         let e=(Math.cos(t*Math.PI)+1)/2;e=Math.pow(e,.82);i=l*u.spreadHeight*e;const c=Math.sin(r*u.waveSpeed+n*.1+o)*u.waveHeight*e;i+=c}return[n,i,a]}let A=new Float32Array(u.lineCount*u.segmentCount*3);
-        let m=f.createBuffer();const v=[[1,.2,.2],[1,.85,.2],[.3,.7,.5],[.1,.3,.5]];function d(){return v[Math.floor(Math.random()*v.length)]}let p=[];for(let t=0;t<u.signalCount;t++)
-        {p.push({lane:Math.floor(Math.random()*u.lineCount),progress:Math.random(),speed:.1+Math.random()*.2,color:d()})}function R(n){let i=0;for(let r=0;r<u.lineCount;r++)
-        {for(let o=0;o<u.segmentCount;o++){let t=o/(u.segmentCount-1);let e=g(t,r,n);A[i]=e[0];A[i+1]=e[1];A[i+2]=e[2];i+=3}}f.bindBuffer(f.ARRAY_BUFFER,m);f.bufferData(f.ARRAY_BUFFER,A,f.DYNAMIC_DRAW)}
-        function C(t,e){f.useProgram(i);let o=f.getAttribLocation(i,"position");f.uniformMatrix4fv(f.getUniformLocation(i,"proj"),false,t);f.uniformMatrix4fv(f.getUniformLocation(i,"view"),false,e);
-        f.bindBuffer(f.ARRAY_BUFFER,m);f.vertexAttribPointer(o,3,f.FLOAT,false,0,0);f.enableVertexAttribArray(o);for(let t=0;t<u.lineCount;t++){f.drawArrays(f.LINE_STRIP,t*u.segmentCount,u.segmentCount)}}
-        function F(o,t,e){f.useProgram(s);let r=[];let n=[];p.forEach(t=>{t.progress+=t.speed*.003;if(t.progress>1){t.progress=0;t.lane=Math.floor(Math.random()*u.lineCount);t.color=d()}let e=g(t.progress,t.lane,o);
-        r.push(e[0],e[1],e[2]);n.push(t.color[0],t.color[1],t.color[2])});let i=f.createBuffer();let a=f.createBuffer();f.bindBuffer(f.ARRAY_BUFFER,i);f.bufferData(f.ARRAY_BUFFER,new Float32Array(r),f.DYNAMIC_DRAW);
-        let l=f.getAttribLocation(s,"position");f.vertexAttribPointer(l,3,f.FLOAT,false,0,0);f.enableVertexAttribArray(l);f.bindBuffer(f.ARRAY_BUFFER,a);f.bufferData(f.ARRAY_BUFFER,new Float32Array(n),f.DYNAMIC_DRAW);
-        let c=f.getAttribLocation(s,"color");f.vertexAttribPointer(c,3,f.FLOAT,false,0,0);f.enableVertexAttribArray(c);f.uniformMatrix4fv(f.getUniformLocation(s,"proj"),false,t);f.uniformMatrix4fv(f.getUniformLocation(s,"view"),false,e);
-        f.drawArrays(f.POINTS,0,p.length)}let w=performance.now();function b(){let t=(performance.now()-w)/1e3;f.clear(f.COLOR_BUFFER_BIT);let e=c(45*Math.PI/180,r.width/r.height,1,1e3);let o=h(90);R(t);C(e,o);
-        F(t,e,o);requestAnimationFrame(b)}b();addEventListener("resize",()=>{r.width=innerWidth;r.height=innerHeight;f.viewport(0,0,r.width,r.height)})})();
+        let m=f.createBuffer();const v=[[1,.2,.2],[1,.85,.2],[.3,.7,.5],[.1,.3,.5]];function d(){return v[Math.floor(Math.random()*v.length)]}let p=[];for(let t=0;t<u.signalCount;t++){p.push({lane:
+        Math.floor(Math.random()*u.lineCount),progress:Math.random(),speed:.1+Math.random()*.2,color:d()})}function R(n){let i=0;for(let r=0;r<u.lineCount;r++){for(let o=0;o<u.segmentCount;o++){let t=o/(u.segmentCount-1);
+        let e=g(t,r,n);A[i]=e[0];A[i+1]=e[1];A[i+2]=e[2];i+=3}}f.bindBuffer(f.ARRAY_BUFFER,m);f.bufferData(f.ARRAY_BUFFER,A,f.DYNAMIC_DRAW)}function C(t,e){f.useProgram(i);let o=f.getAttribLocation(i,"position");
+        f.uniformMatrix4fv(f.getUniformLocation(i,"proj"),false,t);f.uniformMatrix4fv(f.getUniformLocation(i,"view"),false,e);f.bindBuffer(f.ARRAY_BUFFER,m);f.vertexAttribPointer(o,3,f.FLOAT,false,0,0);
+        f.enableVertexAttribArray(o);for(let t=0;t<u.lineCount;t++){f.drawArrays(f.LINE_STRIP,t*u.segmentCount,u.segmentCount)}}function F(o,t,e){f.useProgram(s);let r=[];let n=[];p.forEach(t=>{t.progress+=t.speed*.003;
+        if(t.progress>1){t.progress=0;t.lane=Math.floor(Math.random()*u.lineCount);t.color=d()}let e=g(t.progress,t.lane,o);r.push(e[0],e[1],e[2]);n.push(t.color[0],t.color[1],t.color[2])});let i=f.createBuffer();
+        let a=f.createBuffer();f.bindBuffer(f.ARRAY_BUFFER,i);f.bufferData(f.ARRAY_BUFFER,new Float32Array(r),f.DYNAMIC_DRAW);let l=f.getAttribLocation(s,"position");f.vertexAttribPointer(l,3,f.FLOAT,false,0,0);
+        f.enableVertexAttribArray(l);f.bindBuffer(f.ARRAY_BUFFER,a);f.bufferData(f.ARRAY_BUFFER,new Float32Array(n),f.DYNAMIC_DRAW);let c=f.getAttribLocation(s,"color");f.vertexAttribPointer(c,3,f.FLOAT,false,0,0);
+        f.enableVertexAttribArray(c);f.uniformMatrix4fv(f.getUniformLocation(s,"proj"),false,t);f.uniformMatrix4fv(f.getUniformLocation(s,"view"),false,e);f.drawArrays(f.POINTS,0,p.length)}let w=performance.now();
+        function b(){let t=(performance.now()-w)/1e3;f.clear(f.COLOR_BUFFER_BIT);let e=c(45*Math.PI/180,r.width/r.height,1,1e3);let o=h(90);R(t);C(e,o);F(t,e,o);requestAnimationFrame(b)}b();addEventListener("resize",
+        ()=>{r.width=innerWidth;r.height=innerHeight;f.viewport(0,0,r.width,r.height)})})();
       </script>
 
         <div class="max-w-screen-2xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
