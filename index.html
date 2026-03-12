@@ -51,7 +51,7 @@
         f.attachShader(o,n(f.FRAGMENT_SHADER,e));f.linkProgram(o);return o}const e=` attribute vec3 position; uniform mat4 proj; uniform mat4 view; void main(){ gl_Position=proj*view*vec4(position,1.0);}
         `;const o=`precision mediump float;void main(){gl_FragColor=vec4(.3,.3,.3,.5);}`;const i=t(e,o);const a=`attribute vec3 position;attribute vec3 color;uniform mat4 proj;uniform mat4 view;
         varying vec3 vColor;void main(){gl_Position=proj*view*vec4(position,1.0);gl_PointSize=4.0;vColor=color;}`;const l=`precision mediump float;varying vec3 vColor;void main(){float d=length(gl_PointCoord-vec2(0.5));
-        float alpha=smoothstep(0.1,0.4,d);gl_FragColor=vec4(vColor,alpha);}`;const s=t(a,l);const u={lineCount:40,segmentCount:50,curveLength:50,straightLength:130,spreadHeight:20,waveSpeed:3.4,waveHeight:.25,
+        float alpha=smoothstep(0.1,0.4,d);gl_FragColor=vec4(vColor,alpha);}`;const s=t(a,l);const u={lineCount:40,segmentCount:50,curveLength:90,straightLength:150,spreadHeight:45,waveSpeed:3.4,waveHeight:.25,
         signalCount:300};function c(t,e,o,r){let n=1/Math.tan(t/2);let i=1/(o-r);return new Float32Array([n/e,0,0,0,0,n,0,0,0,0,(r+o)*i,-1,0,0,2*r*o*i,0])}function h(t){return new Float32Array([1,0,0,0,0,1,0,
         0,0,0,1,0,0,0,-t,1])}function g(t,o,r){const e=u.curveLength+u.straightLength;const n=-u.curveLength+t*e;let i=0;let a=0;const l=(o/u.lineCount-.5)*2;if(n<0){let t=(n+u.curveLength)/u.curveLength;
         let e=(Math.cos(t*Math.PI)+1)/2;e=Math.pow(e,.82);i=l*u.spreadHeight*e;const c=Math.sin(r*u.waveSpeed+n*.1+o)*u.waveHeight*e;i+=c}return[n,i,a]}let A=new Float32Array(u.lineCount*u.segmentCount*3);
